@@ -2,7 +2,7 @@
 
 
 ### Meeting: 09/08/2021
-
+\n
 🔹 We discussed the workflow for the project and what an end product might look like (Refer to project workflow image).
 🔹 We agreed on a project timeline of 4 weeks from now with the aim of pushing an MVP by the end of August for further iterations
 🔹 We made the following appointments as Stream Leads
