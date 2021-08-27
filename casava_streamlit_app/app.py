@@ -123,7 +123,7 @@ if selection == 'Try an Image':
           metric = tf.keras.metrics.Accuracy()
           labels = imag_dict['label']
           metric.update_state(labels, predictions)
-          st.write('Prediction: This leave is likely to be suffering from {}'.format(name_map[class_names[predictions.numpy()[0]]]))
+          st.write('Prediction: This leaf is likely to be suffering from {}'.format(name_map[class_names[predictions.numpy()[0]]]))
           # st.write(model.get_config())
           # st.write('Accuracy on %s: %.2f' % ('User Uploaded Image', metric.result().numpy()))
 
