@@ -5,6 +5,19 @@ import tensorflow_datasets as tfds
 import tensorflow_hub as hub
 from PIL import Image, ImageOps 
 import matplotlib.pyplot as plt
+import cv2 
+from efficientnet.tfkeras import EfficientNetB3
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D,MaxPooling2D,Dense,Flatten,Dropout  
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint,ReduceLROnPlateau
+from tensorflow.keras.models import Model
+from tensorflow.keras import layers
+from tensorflow.keras import models
+from tensorflow.keras.optimizers import Adam,SGD,RMSprop,Adamax
+from tensorflow.keras.models import Model, Sequential
+from tensorflow.keras.callbacks import ReduceLROnPlateau
+from sklearn.model_selection import StratifiedKFold
+
 st.set_option('deprecation.showPyplotGlobalUse', False)
 st.sidebar.header('Casava Project')
 
@@ -74,6 +87,27 @@ def plot(examples, predictions=None):
      ax.set_xlabel(x_label)
    plt.show()
 
+def my_init(shape, dtype=None):
+    initializer = tf.keras.initializers.he_uniform(seed = 1)
+    return initializer(shape, dtype=dtype)
+
+def create_custom_model():
+  TARGET_SIZE = 224
+  base_model = EfficientNetB3(weights = 'imagenet', include_top=False, input_shape = (TARGET_SIZE, TARGET_SIZE, 3), pooling=None)
+  base_output = base_model.output
+  pooling_layer = layers.GlobalAveragePooling2D()(base_output)
+  Dense1 = layers.Dense(256, activation = "relu", kernel_initializer=my_init)(pooling_layer)
+  BN1 = layers.BatchNormalization()(Dense1)
+  dropout = layers.Dropout(0.2)(BN1)
+  model = layers.Dense(5, activation="softmax")(dropout)
+
+  model = models.Model(base_model.input, model)
+
+  model.compile(optimizer = 'adam', 
+                loss = "sparse_categorical_crossentropy", 
+                metrics=["acc"])
+
+  return model
 
 batch = dataset['validation'].map(preprocess_fn).batch(25).as_numpy_iterator()
 examples = next(batch)
@@ -98,14 +132,14 @@ if selection == 'Try an Image':
     image_uploaded = st.sidebar.file_uploader('Upload an image')
 
     if image_uploaded is not None:
-        image = Image.open(image_uploaded)
-        st.image(image, width = 350)
+        test_image = Image.open(image_uploaded)
+        st.image(test_image, width = 350)
         col1, col2 = st.columns(2)
-        select_classifier = col1.selectbox('Choose Model', ['CropNet', 'Custom Model'])
+        select_classifier = col1.selectbox('Choose Model', ['All Models', 'Custom Model'])
         run_classifier = col1.button('Run Disease Classifcation')
 
   
-        img = preprocess_image_uploads(image)
+        img = preprocess_image_uploads(test_image)
         img = np.array(img)
         imag_dict = dict()
         imag_dict['image'] = img
@@ -116,17 +150,48 @@ if selection == 'Try an Image':
 
         if run_classifier:
           model = hub.KerasLayer('https://tfhub.dev/google/cropnet/classifier/cassava_disease_V1/2')
-      
           probabilities = model(imag_dict['image'])
           predictions = tf.argmax(probabilities, axis=-1)
-          #st.pyplot(plot(imag_dict, predictions))
           metric = tf.keras.metrics.Accuracy()
           labels = imag_dict['label']
-          metric.update_state(labels, predictions)
-          st.write('Prediction: This leaf is likely to be suffering from {}'.format(name_map[class_names[predictions.numpy()[0]]]))
-          # st.write(model.get_config())
-          # st.write('Accuracy on %s: %.2f' % ('User Uploaded Image', metric.result().numpy()))
+          predicted_class = name_map[class_names[predictions.numpy()[0]]]
+          st.write('CropNet Prediction: {} Dectected'.format(predicted_class))
 
+          #####Custom Model
+          model = create_custom_model()
+          model.load_weights("cassava.h5")
+          im = []
+          #test_image = Image.open(image_uploaded)
+          img_array = np.array(test_image)
+          image_from_array = Image.fromarray(img_array, 'RGB')
+          size_image = image_from_array.resize((224, 224))
+          im.append(np.array(size_image))
+          fv=np.array(im)
+          fv = fv.astype('float32')/255
+          prediction = model.predict(fv)
+          predictions = tf.argmax(prediction, axis=-1)
+          predicted_class = name_map[class_names[predictions.numpy()[0]]]
+          confidence = round(float(max(prediction[0])), 2) * 100
+          st.write('Custom Model Prediction: {} Detected with {}% confidence'.format(predicted_class, confidence  ) ) 
+
+        # elif run_classifier and select_classifier == 'Custom Model':
+        #   model = create_custom_model()
+        #   model.load_weights("cassava.h5")
+        #   im = []
+        #   test_image = Image.open(image_uploaded)
+        #   img_array = np.array(test_image)
+        #   #cv2.imwrite('out.jpg', cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR))
+
+        #   image_from_array = Image.fromarray(img_array, 'RGB')
+        #   size_image = image_from_array.resize((224, 224))
+        #   im.append(np.array(size_image))
+        #   fv=np.array(im)
+        #   fv = fv.astype('float32')/255
+        #   prediction = model.predict(fv)
+        #   predictions = tf.argmax(prediction, axis=-1)
+        #   predicted_class = name_map[class_names[predictions.numpy()[0]]]
+        #   confidence = round(float(max(prediction[0])), 2) * 100
+        #   st.write('Prediction: This leaf is likely to be suffering from {} with {}% confidence'.format(predicted_class, confidence  ) ) 
 
 
     
