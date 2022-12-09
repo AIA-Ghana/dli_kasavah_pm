@@ -13,7 +13,7 @@ bleach==4.0.0
 blinker==1.4
 cached-property==1.5.2
 cachetools==4.2.2
-certifi==2021.5.30
+certifi==2022.12.7
 cffi==1.14.6
 charset-normalizer==2.0.4
 clang==5.0
